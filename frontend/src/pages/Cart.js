@@ -1,5 +1,5 @@
 // src/pages/Cart.js
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useMemo } from "react";
 import {
   Container,
   Typography,
@@ -20,7 +20,6 @@ import { CartContext } from "../context/CartContext";
 
 function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
-  const [total, setTotal] = useState(0);
 
   const currencyFormat = (value) =>
     new Intl.NumberFormat("es-PE", {
@@ -29,10 +28,11 @@ function Cart() {
       minimumFractionDigits: 2
     }).format(value);
 
-  // 📌 Calcular total
-  useEffect(() => {
-    setTotal(cart.reduce((sum, item) => sum + item.price * item.quantity, 0));
-  }, [cart]);
+  // 📌 Calcular total automáticamente con useMemo
+  const total = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [cart]
+  );
 
   // 📌 Cambiar cantidad (positivo o negativo)
   const changeQuantity = (product, delta) => {
@@ -46,6 +46,7 @@ function Cart() {
 
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
+      {/* Título */}
       <Typography
         variant="h4"
         gutterBottom
@@ -60,6 +61,7 @@ function Cart() {
         Carrito de Compras
       </Typography>
 
+      {/* Carrito vacío */}
       {cart.length === 0 ? (
         <Typography variant="h6" sx={{ color: "#777", mt: 3 }}>
           🛒 Tu carrito está vacío.{" "}
@@ -69,6 +71,7 @@ function Cart() {
         </Typography>
       ) : (
         <>
+          {/* Lista de productos */}
           {cart.map((item) => (
             <Card
               key={item.cartId}
@@ -82,6 +85,7 @@ function Cart() {
                 "&:hover": { boxShadow: 6 }
               }}
             >
+              {/* Imagen */}
               <CardMedia
                 component="img"
                 sx={{
@@ -94,6 +98,8 @@ function Cart() {
                 image={item.image}
                 alt={item.name}
               />
+
+              {/* Detalles */}
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                   {item.name}
@@ -106,6 +112,7 @@ function Cart() {
                   {currencyFormat(item.price)}
                 </Typography>
 
+                {/* Controles de cantidad */}
                 <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                   <Typography variant="body2" sx={{ mr: 1, fontWeight: "bold" }}>
                     Cantidad:
@@ -141,6 +148,7 @@ function Cart() {
                     <AddIcon />
                   </IconButton>
 
+                  {/* Botón eliminar */}
                   <IconButton
                     onClick={() => removeFromCart(item.cartId)}
                     color="error"
@@ -155,7 +163,7 @@ function Cart() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Total y botones */}
+          {/* Total y acciones */}
           <Box
             sx={{
               display: "flex",

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+// src/components/Navbar.js
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Badge, Grow, Grid
+  AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Badge, Grow, Grid, useMediaQuery
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
@@ -17,15 +18,31 @@ import ConstructionIcon from "@mui/icons-material/Construction";
 import AgricultureIcon from "@mui/icons-material/Agriculture";
 import SailingIcon from "@mui/icons-material/Sailing";
 import FactoryIcon from "@mui/icons-material/Factory";
-import MilitaryTechIcon from "@mui/icons-material/MilitaryTech"; // Nuevo icono para Militar
+import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
+import { CartContext } from "../context/CartContext";
 
 function Navbar() {
   const location = useLocation();
+  const isMobile = useMediaQuery("(max-width:900px)");
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [anchorProductos, setAnchorProductos] = useState(null);
   const [anchorIndustria, setAnchorIndustria] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
+  const [animateCart, setAnimateCart] = useState(false);
+
+  const { getTotalItems } = useContext(CartContext);
+  const cartCount = getTotalItems();
+
+  const closeTimeout = useRef(null);
+
+  useEffect(() => {
+    if (cartCount > 0) {
+      setAnimateCart(true);
+      const timer = setTimeout(() => setAnimateCart(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [cartCount]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -38,11 +55,6 @@ function Navbar() {
       }
     }
   }, []);
-
-  useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    setCartCount(cart.reduce((acc, item) => acc + (item.quantity || 1), 0));
-  }, [location]);
 
   const linkStyle = (path) => ({
     color: "#fff",
@@ -67,6 +79,17 @@ function Navbar() {
     color: "black",
     transition: "background-color 0.2s ease",
     "&:hover": { backgroundColor: "#f0f0f0" }
+  };
+
+  const handleMenuOpen = (setter, event) => {
+    clearTimeout(closeTimeout.current);
+    setter(event.currentTarget);
+  };
+
+  const handleMenuClose = (setter) => {
+    closeTimeout.current = setTimeout(() => {
+      setter(null);
+    }, 250); // ⏳ delay de cierre
   };
 
   return (
@@ -97,11 +120,7 @@ function Navbar() {
         >
           <MenuIcon />
         </IconButton>
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
-        >
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
           {/* Productos */}
           <MenuItem component={Link} to="/productos/microcontroladores">Microcontroladores</MenuItem>
           <MenuItem component={Link} to="/productos/arduino">Arduino</MenuItem>
@@ -109,34 +128,40 @@ function Navbar() {
           <MenuItem component={Link} to="/productos/raspberry">Raspberry</MenuItem>
           <MenuItem component={Link} to="/productos/sensores">Sensores</MenuItem>
           <MenuItem component={Link} to="/productos/componentes">Componentes</MenuItem>
-
           {/* Industria */}
           <MenuItem component={Link} to="/industria/mineria">Minería</MenuItem>
           <MenuItem component={Link} to="/industria/pesqueria">Pesquería</MenuItem>
           <MenuItem component={Link} to="/industria/ganaderia">Ganadería</MenuItem>
           <MenuItem component={Link} to="/industria/construccion">Construcción</MenuItem>
           <MenuItem component={Link} to="/industria/militar">Militar</MenuItem>
-
           {/* Otras secciones */}
           <MenuItem component={Link} to="/impresion3d">Impresión 3D</MenuItem>
           <MenuItem component={Link} to="/robotica">Robótica</MenuItem>
           <MenuItem component={Link} to="/cursos">Cursos</MenuItem>
           <MenuItem component={Link} to="/cart">
-            Carrito <Badge badgeContent={cartCount} color="secondary" sx={{ ml: 1 }} />
+            Carrito
+            {cartCount > 0 && (
+              <Badge badgeContent={cartCount} color="secondary" sx={{ ml: 1 }} />
+            )}
           </MenuItem>
           {isAdmin && <MenuItem component={Link} to="/admin">Admin</MenuItem>}
         </Menu>
 
         {/* Menú escritorio */}
         <div style={{ display: "flex", alignItems: "center" }}>
-          {/* Productos con 2 columnas */}
+          {/* Productos */}
           <div
-            onMouseEnter={(e) => setAnchorProductos(e.currentTarget)}
-            onMouseLeave={() => setAnchorProductos(null)}
+            onMouseEnter={(e) => !isMobile && handleMenuOpen(setAnchorProductos, e)}
+            onMouseLeave={() => !isMobile && handleMenuClose(setAnchorProductos)}
           >
             <Button
               sx={{ ...linkStyle("/productos"), display: { xs: "none", md: "inline-flex" } }}
               endIcon={<ArrowDropDownIcon />}
+              onClick={(e) =>
+                isMobile
+                  ? setAnchorProductos(e.currentTarget)
+                  : handleMenuOpen(setAnchorProductos, e)
+              }
             >
               Productos
             </Button>
@@ -147,8 +172,8 @@ function Navbar() {
               TransitionComponent={Grow}
               PaperProps={{ sx: dropdownStyle }}
               MenuListProps={{
-                onMouseEnter: () => setAnchorProductos(anchorProductos),
-                onMouseLeave: () => setAnchorProductos(null)
+                onMouseEnter: () => clearTimeout(closeTimeout.current),
+                onMouseLeave: () => handleMenuClose(setAnchorProductos)
               }}
             >
               <Grid container spacing={1}>
@@ -180,12 +205,17 @@ function Navbar() {
 
           {/* Industria */}
           <div
-            onMouseEnter={(e) => setAnchorIndustria(e.currentTarget)}
-            onMouseLeave={() => setAnchorIndustria(null)}
+            onMouseEnter={(e) => !isMobile && handleMenuOpen(setAnchorIndustria, e)}
+            onMouseLeave={() => !isMobile && handleMenuClose(setAnchorIndustria)}
           >
             <Button
               sx={{ ...linkStyle("/industria"), display: { xs: "none", md: "inline-flex" } }}
               endIcon={<ArrowDropDownIcon />}
+              onClick={(e) =>
+                isMobile
+                  ? setAnchorIndustria(e.currentTarget)
+                  : handleMenuOpen(setAnchorIndustria, e)
+              }
             >
               Industria
             </Button>
@@ -196,8 +226,8 @@ function Navbar() {
               TransitionComponent={Grow}
               PaperProps={{ sx: dropdownStyle }}
               MenuListProps={{
-                onMouseEnter: () => setAnchorIndustria(anchorIndustria),
-                onMouseLeave: () => setAnchorIndustria(null)
+                onMouseEnter: () => clearTimeout(closeTimeout.current),
+                onMouseLeave: () => handleMenuClose(setAnchorIndustria)
               }}
             >
               <MenuItem sx={itemStyle} component={Link} to="/industria/mineria">
@@ -230,10 +260,22 @@ function Navbar() {
           </Button>
 
           {/* Carrito */}
-          <IconButton component={Link} to="/cart" sx={{ color: "white", display: { xs: "none", md: "inline-flex" } }}>
-            <Badge badgeContent={cartCount} color="secondary">
+          <IconButton
+            component={Link}
+            to="/cart"
+            sx={{
+              color: "white",
+              display: { xs: "none", md: "inline-flex" },
+              animation: animateCart ? "bounce 0.5s ease" : "none"
+            }}
+          >
+            {cartCount > 0 ? (
+              <Badge badgeContent={cartCount} color="secondary">
+                <ShoppingCartIcon />
+              </Badge>
+            ) : (
               <ShoppingCartIcon />
-            </Badge>
+            )}
           </IconButton>
 
           {/* Admin */}
@@ -249,6 +291,16 @@ function Navbar() {
           )}
         </div>
       </Toolbar>
+
+      {/* Animación carrito */}
+      <style>
+        {`
+          @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+          }
+        `}
+      </style>
     </AppBar>
   );
 }
