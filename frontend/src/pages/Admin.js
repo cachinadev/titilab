@@ -1,3 +1,4 @@
+// src/pages/Admin.js
 import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
@@ -21,7 +22,17 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:4000";
+// ✅ Correct backend env variable
+const backendUrl =
+  process.env.REACT_APP_BACKEND_URL || "http://192.168.18.31:4000";
+const apiBase = `${backendUrl}/api`;
+
+// ✅ Normalize image URL
+const getImageUrl = (path) => {
+  if (!path) return "/placeholder.png";
+  if (path.startsWith("http")) return path;
+  return path.startsWith("/") ? path : `/${path}`;
+};
 
 function Admin() {
   const [products, setProducts] = useState([]);
@@ -49,7 +60,8 @@ function Admin() {
     "ESP32",
     "Raspberry",
     "Sensores",
-    "Componentes"
+    "Componentes",
+    "Cursos"
   ];
 
   const validateToken = useCallback(() => {
@@ -75,15 +87,23 @@ function Admin() {
 
   const fetchProducts = useCallback(async () => {
     const token = localStorage.getItem("token");
-    const res = await fetch(`${BACKEND_URL}/api/products`, {
+    const res = await fetch(`${apiBase}/products`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    if (res.ok) setProducts(await res.json());
+    if (res.ok) {
+      const data = await res.json();
+      setProducts(
+        data.map((p) => ({
+          ...p,
+          image: getImageUrl(p.image)
+        }))
+      );
+    }
   }, []);
 
   const fetchOrders = useCallback(async () => {
     const token = localStorage.getItem("token");
-    const res = await fetch(`${BACKEND_URL}/api/orders`, {
+    const res = await fetch(`${apiBase}/orders`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) setOrders(await res.json());
@@ -115,7 +135,7 @@ function Admin() {
     });
 
     const token = localStorage.getItem("token");
-    const res = await fetch(`${BACKEND_URL}/api/products`, {
+    const res = await fetch(`${apiBase}/products`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form
@@ -141,7 +161,7 @@ function Admin() {
   const deleteProduct = async (id) => {
     if (!window.confirm("¿Eliminar producto?")) return;
     const token = localStorage.getItem("token");
-    const res = await fetch(`${BACKEND_URL}/api/products/${id}`, {
+    const res = await fetch(`${apiBase}/products/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -153,9 +173,7 @@ function Admin() {
 
   const updateOrderStatus = async (id, status) => {
     const token = localStorage.getItem("token");
-
-    // 1️⃣ Update order status
-    const res = await fetch(`${BACKEND_URL}/api/orders/${id}/status`, {
+    const res = await fetch(`${apiBase}/orders/${id}/status`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -165,12 +183,11 @@ function Admin() {
     });
 
     if (res.ok) {
-      // 2️⃣ If "completado", reduce stock
       if (status === "completado") {
         const order = orders.find((o) => o.id === id);
         if (order) {
           for (const item of order.cart) {
-            await fetch(`${BACKEND_URL}/api/products/${item._id}/stock`, {
+            await fetch(`${apiBase}/products/${item._id}/stock`, {
               method: "PUT",
               headers: {
                 Authorization: `Bearer ${token}`,
@@ -182,8 +199,6 @@ function Admin() {
           alert("📉 Stock actualizado según el pedido completado");
         }
       }
-
-      // 3️⃣ Refresh orders & products
       fetchOrders();
       fetchProducts();
     }
@@ -202,12 +217,7 @@ function Admin() {
       <Typography variant="h4" gutterBottom>
         📦 Panel de Administración
       </Typography>
-      <Button
-        variant="outlined"
-        color="secondary"
-        onClick={handleLogout}
-        sx={{ mb: 2 }}
-      >
+      <Button variant="outlined" color="secondary" onClick={handleLogout} sx={{ mb: 2 }}>
         Cerrar Sesión
       </Button>
 
@@ -218,6 +228,7 @@ function Admin() {
         </Typography>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={2}>
+            {/* Form Fields */}
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
@@ -278,6 +289,7 @@ function Admin() {
                 onChange={handleChange}
               />
             </Grid>
+            {/* Image Upload */}
             <Grid item xs={12} sm={6}>
               <Button
                 variant="outlined"
@@ -330,16 +342,18 @@ function Admin() {
       <List>
         {products.map((product) => (
           <ListItem key={product._id}>
+            <CardMedia
+              component="img"
+              image={product.image}
+              alt={product.name}
+              sx={{ width: 60, height: 60, objectFit: "contain", mr: 2, bgcolor: "#f5f5f5" }}
+            />
             <ListItemText
               primary={`${product.name} (${product.category})`}
               secondary={`Precio: S/. ${product.price} | Stock: ${product.stock}`}
             />
             <ListItemSecondaryAction>
-              <IconButton
-                edge="end"
-                color="error"
-                onClick={() => deleteProduct(product._id)}
-              >
+              <IconButton edge="end" color="error" onClick={() => deleteProduct(product._id)}>
                 <DeleteIcon />
               </IconButton>
             </ListItemSecondaryAction>
@@ -378,9 +392,7 @@ function Admin() {
                 <FormControl size="small" sx={{ minWidth: 120 }}>
                   <Select
                     value={order.status || "pendiente"}
-                    onChange={(e) =>
-                      updateOrderStatus(order.id, e.target.value)
-                    }
+                    onChange={(e) => updateOrderStatus(order.id, e.target.value)}
                   >
                     <MenuItem value="pendiente">Pendiente</MenuItem>
                     <MenuItem value="enviado">Enviado</MenuItem>

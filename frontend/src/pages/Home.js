@@ -1,58 +1,33 @@
+// src/pages/Home.js
 import React, { useEffect, useState, useContext } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import {
-  Container,
-  Typography,
-  Grid,
-  Card,
-  CardMedia,
-  CardContent,
-  CardActions,
-  Button,
-  CircularProgress,
-  Snackbar,
-  Alert,
-  Box,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
-  TextField,
-  Badge
+  Container, Typography, Grid, Card, CardMedia, CardContent, CardActions,
+  Button, CircularProgress, Snackbar, Alert, Box, List, ListItem,
+  ListItemText, Paper, TextField, Badge
 } from "@mui/material";
 import { CartContext } from "../context/CartContext";
+import { getImageUrl } from "../utils/imageUtils";
 
-// Constantes para categorías y estilos reutilizables
-// Constantes para categorías y estilos reutilizables
 const CATEGORIES = [
   {
     name: "Productos",
     subcategories: [
-      "Microcontroladores",
-      "Arduino",
-      "ESP32",
-      "Raspberry",
-      "Sensores",
-      "Componentes",
-      "Impresión 3D"
+      "Microcontroladores", "Arduino", "ESP32", "Raspberry",
+      "Sensores", "Componentes", "Impresión 3D"
     ]
   },
   {
     name: "Industria",
     subcategories: [
-      "Minería",
-      "Pesquería",
-      "Ganadería",
-      "Construcción",
-      "Militar",
-      "Agricultura"
+      "Minería", "Pesquería", "Ganadería", "Construcción",
+      "Militar", "Agricultura"
     ]
   },
   { name: "Robótica", subcategories: [] },
   { name: "Cursos", subcategories: [] }
 ];
-
 
 const CARD_STYLES = {
   root: {
@@ -61,23 +36,16 @@ const CARD_STYLES = {
     flexDirection: "column",
     justifyContent: "space-between",
     transition: "transform 0.2s ease, box-shadow 0.2s ease",
-    "&:hover": {
-      transform: "scale(1.03)",
-      boxShadow: 6
-    }
+    "&:hover": { transform: "scale(1.03)", boxShadow: 6 }
   },
   media: {
     objectFit: "contain",
     bgcolor: "#f5f5f5",
     borderBottom: "1px solid #ddd",
     height: 200,
-    p: 2 // Padding para imágenes
+    p: 2
   },
-  content: {
-    flexGrow: 1,
-    display: "flex",
-    flexDirection: "column"
-  },
+  content: { flexGrow: 1, display: "flex", flexDirection: "column" },
   description: {
     mb: 1,
     minHeight: 40,
@@ -108,33 +76,36 @@ function Home() {
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const { addToCart } = useContext(CartContext);
 
-  // Fetch products on mount
+  // Fetch products & normalize image URLs
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get("http://localhost:4000/api/products");
-        setProducts(res.data);
-        setFilteredProducts(res.data);
+        const res = await axios.get(
+          `${process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:4000/api"}/products`
+        );
+        const normalized = res.data.map((p) => ({
+          ...p,
+          image: getImageUrl(p.image)
+        }));
+        setProducts(normalized);
+        setFilteredProducts(normalized);
       } catch (err) {
         console.error("Error al obtener productos:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchProducts();
   }, []);
 
-  // Filter products based on search and category
+  // Filter products
   useEffect(() => {
     let tempProducts = [...products];
-
     if (selectedCategory !== "Todos") {
       tempProducts = tempProducts.filter(
         (p) => p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
-
     if (search.trim() !== "") {
       tempProducts = tempProducts.filter(
         (p) =>
@@ -142,7 +113,6 @@ function Home() {
           p.description.toLowerCase().includes(search.toLowerCase())
       );
     }
-
     setFilteredProducts(tempProducts);
   }, [search, selectedCategory, products]);
 
@@ -165,16 +135,14 @@ function Home() {
     return (
       <Container sx={{ textAlign: "center", mt: 10 }}>
         <CircularProgress />
-        <Typography variant="h6" sx={{ mt: 2 }}>
-          Cargando productos...
-        </Typography>
+        <Typography variant="h6" sx={{ mt: 2 }}>Cargando productos...</Typography>
       </Container>
     );
   }
 
   return (
     <>
-      {/* Hero Banner */}
+      {/* Hero */}
       <Box
         sx={{
           width: "100%",
@@ -205,7 +173,7 @@ function Home() {
       </Box>
 
       <Container maxWidth="xl">
-        {/* Search and Filter Section */}
+        {/* Search & Categories */}
         <Box sx={{ mb: 3 }}>
           <TextField
             fullWidth
@@ -215,8 +183,6 @@ function Home() {
             onChange={(e) => setSearch(e.target.value)}
             sx={{ mb: 2 }}
           />
-
-          {/* Categories */}
           <Paper sx={{ p: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Categorías
@@ -235,53 +201,51 @@ function Home() {
                   sx={{ ml: 1 }}
                 />
               </ListItem>
-
               {CATEGORIES.map((group, idx) => (
                 <Box key={idx} sx={{ display: "flex", flexWrap: "wrap" }}>
-                  {group.subcategories.length > 0 ? (
-                    group.subcategories.map((sub, i) => (
-                      <ListItem
-                        button
-                        key={i}
-                        selected={selectedCategory === sub}
-                        onClick={() => setSelectedCategory(sub)}
-                        sx={CATEGORY_ITEM_STYLES(selectedCategory === sub)}
-                      >
-                        <ListItemText primary={sub} />
-                        <Badge
-                          badgeContent={getCategoryCount(sub)}
-                          color={selectedCategory === sub ? "secondary" : "primary"}
-                          sx={{ ml: 1 }}
-                        />
-                      </ListItem>
-                    ))
-                  ) : (
-                    <ListItem
-                      button
-                      selected={selectedCategory === group.name}
-                      onClick={() => setSelectedCategory(group.name)}
-                      sx={CATEGORY_ITEM_STYLES(selectedCategory === group.name)}
-                    >
-                      <ListItemText primary={group.name} />
-                      <Badge
-                        badgeContent={getCategoryCount(group.name)}
-                        color={selectedCategory === group.name ? "secondary" : "primary"}
-                        sx={{ ml: 1 }}
-                      />
-                    </ListItem>
-                  )}
+                  {group.subcategories.length > 0
+                    ? group.subcategories.map((sub, i) => (
+                        <ListItem
+                          button
+                          key={i}
+                          selected={selectedCategory === sub}
+                          onClick={() => setSelectedCategory(sub)}
+                          sx={CATEGORY_ITEM_STYLES(selectedCategory === sub)}
+                        >
+                          <ListItemText primary={sub} />
+                          <Badge
+                            badgeContent={getCategoryCount(sub)}
+                            color={selectedCategory === sub ? "secondary" : "primary"}
+                            sx={{ ml: 1 }}
+                          />
+                        </ListItem>
+                      ))
+                    : (
+                        <ListItem
+                          button
+                          selected={selectedCategory === group.name}
+                          onClick={() => setSelectedCategory(group.name)}
+                          sx={CATEGORY_ITEM_STYLES(selectedCategory === group.name)}
+                        >
+                          <ListItemText primary={group.name} />
+                          <Badge
+                            badgeContent={getCategoryCount(group.name)}
+                            color={selectedCategory === group.name ? "secondary" : "primary"}
+                            sx={{ ml: 1 }}
+                          />
+                        </ListItem>
+                      )}
                 </Box>
               ))}
             </List>
           </Paper>
         </Box>
 
-        {/* Products Section */}
+        {/* Products */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" gutterBottom fontWeight="bold">
             {selectedCategory === "Todos" ? "Todos los Productos" : selectedCategory}
           </Typography>
-          
           <Grid container spacing={3}>
             {filteredProducts.length > 0 ? (
               filteredProducts.map((product) => (
@@ -293,12 +257,11 @@ function Home() {
                     >
                       <CardMedia
                         component="img"
-                        image={product.image}
+                        image={getImageUrl(product.image)}
                         alt={product.name}
                         sx={CARD_STYLES.media}
                       />
                     </Link>
-
                     <CardContent sx={CARD_STYLES.content}>
                       <Typography
                         variant="subtitle1"
@@ -317,11 +280,10 @@ function Home() {
                       >
                         {product.description}
                       </Typography>
-                      <Typography variant="h6" color="primary" sx={{ mt: 'auto' }}>
+                      <Typography variant="h6" color="primary" sx={{ mt: "auto" }}>
                         S/ {Number(product.price).toFixed(2)}
                       </Typography>
                     </CardContent>
-                    
                     <CardActions>
                       <Button
                         variant="contained"
@@ -345,7 +307,7 @@ function Home() {
           </Grid>
         </Box>
 
-        {/* Feedback Snackbar */}
+        {/* Snackbar */}
         <Snackbar
           open={snackbar.open}
           autoHideDuration={2000}

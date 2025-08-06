@@ -1,6 +1,6 @@
 // src/pages/ProductDetail.js
 import React, { useEffect, useState, useContext } from "react";
-import { useParams, Link } from "react-router-dom"; // ✅ Added back
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import {
   Container,
@@ -21,6 +21,12 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { CartContext } from "../context/CartContext";
 
+// ✅ Unified image path handling
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return "/placeholder.png";
+  if (imagePath.startsWith("http")) return imagePath;
+  return imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+};
 
 function ProductDetail() {
   const { id } = useParams();
@@ -28,39 +34,47 @@ function ProductDetail() {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
-  const [modalProduct, setModalProduct] = useState(null); // For popup quick view
+  const [modalProduct, setModalProduct] = useState(null);
   const { addToCart } = useContext(CartContext);
 
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://192.168.18.31:4000/api";
+
+  // Fetch product
   useEffect(() => {
     setLoading(true);
     axios
-      .get(`http://localhost:4000/api/products/${id}`)
+      .get(`${backendUrl}/products/${id}`)
       .then((res) => {
-        setProduct(res.data);
-        setLoading(false);
+        setProduct({
+          ...res.data,
+          image: getImageUrl(res.data.image)
+        });
       })
-      .catch((err) => {
-        console.error("Error al obtener detalles del producto:", err);
-        setLoading(false);
-      });
-  }, [id]);
+      .catch((err) => console.error("Error al obtener detalles del producto:", err))
+      .finally(() => setLoading(false));
+  }, [id, backendUrl]); // ✅ Added backendUrl
 
-  // Fetch related products from same category
+  // Fetch related products
   useEffect(() => {
     if (product?.category) {
       axios
-        .get(`http://localhost:4000/api/products`)
+        .get(`${backendUrl}/products`)
         .then((res) => {
-          const related = res.data.filter(
-            (p) => p.category === product.category && p._id !== product._id
-          );
+          const related = res.data
+            .filter(
+              (p) => p.category === product.category && p._id !== product._id
+            )
+            .map((p) => ({
+              ...p,
+              image: getImageUrl(p.image)
+            }));
           setRelatedProducts(related);
         })
-        .catch((err) => {
-          console.error("Error al obtener productos relacionados:", err);
-        });
+        .catch((err) =>
+          console.error("Error al obtener productos relacionados:", err)
+        );
     }
-  }, [product]);
+  }, [product, backendUrl]); // ✅ Added backendUrl
 
   const handleAddToCart = (prod) => {
     addToCart(prod);
@@ -87,13 +101,7 @@ function ProductDetail() {
         <Typography variant="h5" color="error" gutterBottom>
           Producto no encontrado.
         </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          component={Link}
-          to="/"
-          sx={{ mt: 2 }}
-        >
+        <Button variant="contained" color="primary" component={Link} to="/" sx={{ mt: 2 }}>
           Volver a la tienda
         </Button>
       </Container>
@@ -116,13 +124,9 @@ function ProductDetail() {
             >
               <CardMedia
                 component="img"
-                image={product.image || "https://via.placeholder.com/500x400?text=Sin+Imagen"}
+                image={product.image}
                 alt={product.name}
-                sx={{
-                  width: "100%",
-                  height: 400,
-                  objectFit: "contain"
-                }}
+                sx={{ width: "100%", height: 400, objectFit: "contain" }}
               />
             </Box>
           </Grid>
@@ -154,21 +158,11 @@ function ProductDetail() {
                 size="large"
                 onClick={() => handleAddToCart(product)}
                 disabled={product.stock <= 0}
-                sx={{
-                  px: 4,
-                  py: 1.5,
-                  fontSize: "1rem",
-                  fontWeight: "bold"
-                }}
+                sx={{ px: 4, py: 1.5, fontSize: "1rem", fontWeight: "bold" }}
               >
                 {product.stock > 0 ? "Agregar al carrito" : "Agotado"}
               </Button>
-              <Button
-                variant="outlined"
-                size="large"
-                component={Link}
-                to="/"
-              >
+              <Button variant="outlined" size="large" component={Link} to="/">
                 Volver a la tienda
               </Button>
             </Box>
@@ -193,7 +187,6 @@ function ProductDetail() {
                     "&:hover": { boxShadow: 6 }
                   }}
                 >
-                  {/* Image -> Quick view modal */}
                   <CardMedia
                     component="img"
                     image={rel.image}
@@ -208,8 +201,6 @@ function ProductDetail() {
                     }}
                     onClick={() => setModalProduct(rel)}
                   />
-
-                  {/* Name -> Link to detail page */}
                   <Typography
                     variant="subtitle1"
                     fontWeight="bold"
@@ -220,15 +211,12 @@ function ProductDetail() {
                   >
                     {rel.name}
                   </Typography>
-
                   <Typography variant="body2" color="text.secondary" noWrap>
                     {rel.description}
                   </Typography>
-
                   <Typography variant="h6" color="primary">
                     S/ {Number(rel.price).toFixed(2)}
                   </Typography>
-
                   <Button
                     variant="contained"
                     size="small"
@@ -244,7 +232,6 @@ function ProductDetail() {
           </Grid>
         </Box>
       )}
-
 
       {/* Quick View Modal */}
       <Dialog open={!!modalProduct} onClose={() => setModalProduct(null)} maxWidth="md" fullWidth>

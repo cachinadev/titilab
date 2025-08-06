@@ -34,7 +34,7 @@ function AdminLogin() {
     }
 
     try {
-      const res = await fetch("http://localhost:4000/api/admin/login", {
+      const res = await fetch("http://192.168.18.31:4000/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })

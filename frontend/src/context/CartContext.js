@@ -18,13 +18,19 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
 
-  // 📌 Añadir producto — si existe, sumar cantidad
+  // 📌 Normalizar imagen → siempre devolver /uploads/... si existe
+  const normalizeImagePath = (image) => {
+    if (!image) return "";
+    const match = image.match(/(\/uploads\/.*)$/);
+    return match ? match[1] : image;
+  };
+
+  // 📌 Añadir producto — si existe, aumentar cantidad
   const addToCart = (product) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item._id === product._id);
 
       if (existingItem) {
-        // Si existe, sumar cantidad
         return prevCart.map((item) =>
           item._id === product._id
             ? { ...item, quantity: item.quantity + 1 }
@@ -32,20 +38,24 @@ export const CartProvider = ({ children }) => {
         );
       }
 
-      // Si no existe, agregar con cartId único
       return [
         ...prevCart,
-        { ...product, quantity: 1, cartId: Date.now() + Math.random() }
+        {
+          ...product,
+          image: normalizeImagePath(product.image),
+          quantity: 1,
+          cartId: Date.now() + Math.random()
+        }
       ];
     });
   };
 
-  // 📌 Eliminar producto usando cartId
+  // 📌 Eliminar producto por cartId
   const removeFromCart = (cartId) => {
     setCart((prevCart) => prevCart.filter((item) => item.cartId !== cartId));
   };
 
-  // 📌 Actualizar cantidad usando cartId
+  // 📌 Actualizar cantidad
   const updateQuantity = (cartId, newQuantity) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
@@ -61,10 +71,9 @@ export const CartProvider = ({ children }) => {
     setCart([]);
   };
 
-  // 📌 Obtener cantidad total de productos (para el icono del carrito)
-  const getTotalItems = () => {
-    return cart.reduce((acc, item) => acc + item.quantity, 0);
-  };
+  // 📌 Obtener total de items
+  const getTotalItems = () =>
+    cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <CartContext.Provider
@@ -75,7 +84,7 @@ export const CartProvider = ({ children }) => {
         removeFromCart,
         updateQuantity,
         clearCart,
-        getTotalItems // ✅ para mostrar el número de items en el icono
+        getTotalItems
       }}
     >
       {children}

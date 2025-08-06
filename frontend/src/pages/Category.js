@@ -16,6 +16,7 @@ import {
   Alert
 } from "@mui/material";
 import { CartContext } from "../context/CartContext";
+import { getImageUrl } from "../utils/imageUtils"; // ✅ Shared image util
 
 function Category() {
   const { categoryName = "" } = useParams();
@@ -24,24 +25,31 @@ function Category() {
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
   const { addToCart } = useContext(CartContext);
 
+  const backendUrl =
+    process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:4000/api";
+
   useEffect(() => {
     setLoading(true);
     axios
-      .get("http://localhost:4000/api/products")
+      .get(`${backendUrl}/products`)
       .then((res) => {
-        const filtered = res.data.filter(
-          (p) =>
-            p.category &&
-            p.category.toLowerCase().trim() === categoryName.toLowerCase().trim()
-        );
+        const filtered = res.data
+          .filter(
+            (p) =>
+              p.category &&
+              p.category.toLowerCase().trim() === categoryName.toLowerCase().trim()
+          )
+          .map((p) => ({
+            ...p,
+            image: getImageUrl(p.image) // ✅ Normalize image
+          }));
         setProducts(filtered);
-        setLoading(false);
       })
       .catch((err) => {
         console.error("Error al obtener productos:", err);
-        setLoading(false);
-      });
-  }, [categoryName]);
+      })
+      .finally(() => setLoading(false));
+  }, [categoryName, backendUrl]);
 
   const handleAddToCart = (product) => {
     addToCart(product);
@@ -56,7 +64,8 @@ function Category() {
       <Container sx={{ textAlign: "center", mt: 10 }}>
         <CircularProgress />
         <Typography variant="h6" sx={{ mt: 2 }}>
-          Cargando productos de {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}...
+          Cargando productos de{" "}
+          {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}...
         </Typography>
       </Container>
     );
@@ -68,8 +77,9 @@ function Category() {
         {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}
       </Typography>
       <Typography variant="body1" sx={{ mb: 3 }}>
-        Bienvenido a la sección de {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}.
-        Aquí encontrarás los mejores productos para tus proyectos.
+        Bienvenido a la sección de{" "}
+        {categoryName.charAt(0).toUpperCase() + categoryName.slice(1)}. Aquí
+        encontrarás los mejores productos para tus proyectos.
       </Typography>
 
       <Grid container spacing={3}>
@@ -83,13 +93,9 @@ function Category() {
                   flexDirection: "column",
                   justifyContent: "space-between",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  "&:hover": {
-                    transform: "scale(1.03)",
-                    boxShadow: 6
-                  }
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 6 }
                 }}
               >
-                {/* Imagen clickeable */}
                 <Link
                   to={`/producto/${product._id}`}
                   style={{ textDecoration: "none", color: "inherit" }}
@@ -115,7 +121,6 @@ function Category() {
                     justifyContent: "space-between"
                   }}
                 >
-                  {/* Nombre clickeable */}
                   <Typography
                     variant="subtitle1"
                     fontWeight="bold"
@@ -127,7 +132,6 @@ function Category() {
                     {product.name}
                   </Typography>
 
-                  {/* Descripción corta */}
                   <Typography
                     variant="body2"
                     color="text.secondary"
@@ -144,13 +148,11 @@ function Category() {
                     {product.description}
                   </Typography>
 
-                  {/* Precio */}
                   <Typography variant="h6" color="primary">
                     S/ {Number(product.price).toFixed(2)}
                   </Typography>
                 </CardContent>
 
-                {/* Botón agregar */}
                 <CardActions sx={{ mt: "auto" }}>
                   <Button
                     variant="contained"
@@ -173,7 +175,6 @@ function Category() {
         )}
       </Grid>
 
-      {/* Snackbar */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={2000}

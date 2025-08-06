@@ -21,7 +21,7 @@ const upload = multer({ storage });
 router.get('/', async (req, res) => {
   try {
     const products = await db.all('SELECT * FROM products');
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:4000`;
+    const baseUrl = process.env.REACT_APP_BACKEND_UR || `http://192.168.18.31:4000`;
 
     const mappedProducts = products.map((p) => ({
       _id: p.id,
@@ -53,7 +53,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
 
-    const baseUrl = process.env.BACKEND_URL || `http://localhost:4000`;
+    const baseUrl = process.env.REACT_APP_BACKEND_UR || `http://192.168.18.31:4000`;
     product._id = product.id;
     product.image = product.image ? `${baseUrl}${product.image}` : null;
 

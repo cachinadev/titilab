@@ -21,6 +21,7 @@ import { CartContext } from "../context/CartContext";
 function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
 
+  // ✅ Format currency (PEN)
   const currencyFormat = (value) =>
     new Intl.NumberFormat("es-PE", {
       style: "currency",
@@ -28,13 +29,13 @@ function Cart() {
       minimumFractionDigits: 2
     }).format(value);
 
-  // 📌 Calcular total automáticamente con useMemo
+  // 📌 Calculate total
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [cart]
   );
 
-  // 📌 Cambiar cantidad (positivo o negativo)
+  // 📌 Change quantity
   const changeQuantity = (product, delta) => {
     const newQty = product.quantity + delta;
     if (newQty <= 0) {
@@ -44,9 +45,16 @@ function Cart() {
     }
   };
 
+  // ✅ Always return relative path for images
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return "/placeholder.png";
+    if (imagePath.startsWith("http")) return imagePath;
+    return imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+  };
+
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      {/* Título */}
+      {/* Title */}
       <Typography
         variant="h4"
         gutterBottom
@@ -61,17 +69,20 @@ function Cart() {
         Carrito de Compras
       </Typography>
 
-      {/* Carrito vacío */}
+      {/* Empty cart */}
       {cart.length === 0 ? (
         <Typography variant="h6" sx={{ color: "#777", mt: 3 }}>
           🛒 Tu carrito está vacío.{" "}
-          <Link to="/" style={{ textDecoration: "none", color: "#1976d2", fontWeight: "bold" }}>
+          <Link
+            to="/"
+            style={{ textDecoration: "none", color: "#1976d2", fontWeight: "bold" }}
+          >
             Ir a la tienda
           </Link>
         </Typography>
       ) : (
         <>
-          {/* Lista de productos */}
+          {/* Product list */}
           {cart.map((item) => (
             <Card
               key={item.cartId}
@@ -85,7 +96,7 @@ function Cart() {
                 "&:hover": { boxShadow: 6 }
               }}
             >
-              {/* Imagen */}
+              {/* Image */}
               <CardMedia
                 component="img"
                 sx={{
@@ -95,16 +106,15 @@ function Cart() {
                   backgroundColor: "#f9f9f9",
                   borderRight: "1px solid #eee"
                 }}
-                image={item.image}
+                image={getImageUrl(item.image)}
                 alt={item.name}
               />
 
-              {/* Detalles */}
+              {/* Details */}
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                   {item.name}
                 </Typography>
-
                 <Typography
                   variant="body1"
                   sx={{ color: "#1976d2", fontWeight: "bold", mt: 0.5 }}
@@ -112,7 +122,7 @@ function Cart() {
                   {currencyFormat(item.price)}
                 </Typography>
 
-                {/* Controles de cantidad */}
+                {/* Quantity controls */}
                 <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                   <Typography variant="body2" sx={{ mr: 1, fontWeight: "bold" }}>
                     Cantidad:
@@ -147,8 +157,7 @@ function Cart() {
                   >
                     <AddIcon />
                   </IconButton>
-
-                  {/* Botón eliminar */}
+                  {/* Remove */}
                   <IconButton
                     onClick={() => removeFromCart(item.cartId)}
                     color="error"
@@ -163,7 +172,7 @@ function Cart() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Total y acciones */}
+          {/* Total & Actions */}
           <Box
             sx={{
               display: "flex",
