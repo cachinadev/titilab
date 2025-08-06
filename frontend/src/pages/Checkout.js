@@ -1,3 +1,4 @@
+// src/pages/Checkout.js
 import React, { useEffect, useState } from "react";
 import {
   Container, Typography, Grid, TextField, Button,
@@ -63,6 +64,11 @@ function Checkout() {
       return;
     }
 
+    // Obtener nombres reales de ubicación
+    const departamentoName = departamentos.find(dep => dep.id === departamento)?.name || "";
+    const provinciaName = provincias.find(prov => prov.id === provincia)?.name || "";
+    const distritoName = distritos.find(dist => dist.id === distrito)?.name || "";
+
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -70,9 +76,9 @@ function Checkout() {
         body: JSON.stringify({
           ...formData,
           tipoComprobante,
-          departamento,
-          provincia,
-          distrito,
+          departamento: departamentoName,
+          provincia: provinciaName,
+          distrito: distritoName,
           courier,
           metodoPago,
           cart,

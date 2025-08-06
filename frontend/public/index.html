@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="icon" href="%PUBLIC_URL%/images/titilab.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
     <meta name="theme-color" content="#1976d2" />
 
@@ -15,14 +15,14 @@
     <meta name="keywords" content="TITILAB, tienda, electrónica, IoT, Arduino, Raspberry Pi, cursos, proyectos" />
     <meta name="author" content="TITILAB" />
 
-    <!-- Open Graph para redes sociales -->
+    <!-- Open Graph -->
     <meta property="og:title" content="TITILAB Store" />
     <meta property="og:description" content="Tienda de electrónica, IoT y proyectos educativos." />
-    <meta property="og:image" content="%PUBLIC_URL%/titilab-store-banner.png" />
+    <meta property="og:image" content="%PUBLIC_URL%/images/titilab.png" />
     <meta property="og:url" content="https://titilab.store" />
     <meta property="og:type" content="website" />
 
-    <!-- Fuente Google (Material UI friendly) -->
+    <!-- Fuente Google -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -30,7 +30,6 @@
       rel="stylesheet"
     />
 
-    <!-- Estilos básicos para fondo y tipografía -->
     <style>
       body {
         margin: 0;
@@ -39,6 +38,33 @@
         color: #333;
       }
     </style>
+
+    <!-- Script con pausa media y final -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        let message = " 🛒 Bienvenido a TITILAB Store | ⚡ Electrónica y Soluciones IoT | 📦 Arduino, ESP32, Raspberry Pi | 🚀 Cursos y Proyectos ";
+        let position = 0;
+        let speed = 200;  // velocidad desplazamiento (ms)
+        let pause = 1500; // pausa (ms)
+        let midPauseIndex = message.indexOf("TITILAB Store") + "TITILAB Store".length;
+
+        function scrollTitle() {
+          document.title = message.substring(position) + message.substring(0, position);
+          position++;
+
+          if (position >= message.length) {
+            position = 0;
+            setTimeout(scrollTitle, pause); // pausa al final
+          } else if (position === midPauseIndex) {
+            setTimeout(scrollTitle, pause); // pausa en el medio
+          } else {
+            setTimeout(scrollTitle, speed);
+          }
+        }
+
+        scrollTitle();
+      });
+    </script>
   </head>
   <body>
     <noscript>Necesitas habilitar JavaScript para usar esta aplicación.</noscript>
