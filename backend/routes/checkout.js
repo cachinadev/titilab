@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 
 const router = express.Router();
 
-// 📌 Crear tabla pedidos si no existe
+// 📌 Crear tabla pedidos si no existe (top-level await OK en ESM)
 await db.exec(`
   CREATE TABLE IF NOT EXISTS pedidos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,6 +29,26 @@ await db.exec(`
   )
 `);
 
+// Utils
+const safeParseCart = (value) => {
+  try {
+    if (!value) return [];
+    return Array.isArray(value) ? value : JSON.parse(value);
+  } catch {
+    return [];
+  }
+};
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST || "smtp.gmail.com",
+  port: Number(process.env.EMAIL_PORT || 587),
+  secure: String(process.env.EMAIL_SECURE || "false") === "true", // true para 465, false para 587
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
 router.post("/", async (req, res) => {
   try {
     const {
@@ -40,72 +60,62 @@ router.post("/", async (req, res) => {
       dni,
       ruc,
       empresa,
-      departamento, // Ahora viene como nombre
-      provincia,    // Ahora viene como nombre
-      distrito,     // Ahora viene como nombre
+      departamento, // nombre
+      provincia,    // nombre
+      distrito,     // nombre
       courier,
       metodoPago,
       total,
       cart,
-      status
-    } = req.body;
+      status,
+    } = req.body || {};
 
+    const cartItems = safeParseCart(cart);
     const fecha = new Date().toISOString();
     const pedidoStatus = status || "pendiente";
 
     // Guardar pedido en BD
     const result = await db.run(
       `INSERT INTO pedidos 
-      (nombre, email, direccion, telefono, tipoComprobante, dni, ruc, empresa, 
-      departamento, provincia, distrito, courier, metodoPago, total, cart, fecha, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (nombre, email, direccion, telefono, tipoComprobante, dni, ruc, empresa, 
+        departamento, provincia, distrito, courier, metodoPago, total, cart, fecha, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        nombre,
-        email,
-        direccion,
-        telefono,
-        tipoComprobante,
-        dni,
-        ruc,
-        empresa,
-        departamento,
-        provincia,
-        distrito,
-        courier,
-        metodoPago,
-        total,
-        JSON.stringify(cart),
+        nombre ?? "",
+        email ?? "",
+        direccion ?? "",
+        telefono ?? "",
+        tipoComprobante ?? "",
+        dni ?? "",
+        ruc ?? "",
+        empresa ?? "",
+        departamento ?? "",
+        provincia ?? "",
+        distrito ?? "",
+        courier ?? "",
+        metodoPago ?? "",
+        Number(total || 0),
+        JSON.stringify(cartItems),
         fecha,
-        pedidoStatus
+        pedidoStatus,
       ]
     );
 
     const orderId = result.lastID;
     const trackingCode = `T-${orderId}-${Date.now().toString().slice(-4)}`;
 
-    // 📩 Configuración de nodemailer
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
-
     // 📄 Generar tabla HTML de productos
-    const itemsHTML = JSON.parse(cart)
+    const itemsHTML = cartItems
       .map(
         (item) => `
         <tr>
           <td style="padding:8px;border:1px solid #ddd;">${item.name}</td>
           <td style="padding:8px;border:1px solid #ddd;">${item.quantity}</td>
-          <td style="padding:8px;border:1px solid #ddd;">S/ ${(item.price * item.quantity).toFixed(2)}</td>
-        </tr>
-      `
+          <td style="padding:8px;border:1px solid #ddd;">S/ ${(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}</td>
+        </tr>`
       )
       .join("");
 
-    // 📄 HTML del correo
     const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
       <div style="background-color: #1976d2; color: white; padding: 16px; text-align: center;">
@@ -113,14 +123,14 @@ router.post("/", async (req, res) => {
         <p style="margin: 0; font-size: 16px;">Confirmación de tu pedido</p>
       </div>
       <div style="padding: 20px;">
-        <p>Hola <b>${nombre}</b>,</p>
+        <p>Hola <b>${nombre || ""}</b>,</p>
         <p>Gracias por tu compra en <b>Titilab Store</b>. Hemos recibido tu pedido y lo estamos procesando.</p>
         
         <h2 style="color: #1976d2;">Detalles del pedido</h2>
         <p><b>Pedido N°:</b> ${orderId}</p>
         <p><b>Código de seguimiento:</b> ${trackingCode}</p>
-        <p><b>Total:</b> S/ ${total}</p>
-        <p><b>Método de pago:</b> ${metodoPago}</p>
+        <p><b>Total:</b> S/ ${Number(total || 0).toFixed(2)}</p>
+        <p><b>Método de pago:</b> ${metodoPago || ""}</p>
 
         <h3 style="color: #1976d2;">Productos</h3>
         <table style="width:100%;border-collapse:collapse;">
@@ -137,8 +147,8 @@ router.post("/", async (req, res) => {
         </table>
 
         <h3 style="color: #1976d2;">Datos de envío</h3>
-        <p>${direccion}, ${distrito}, ${provincia}, ${departamento}</p>
-        <p><b>Teléfono:</b> ${telefono}</p>
+        <p>${[direccion, distrito, provincia, departamento].filter(Boolean).join(", ")}</p>
+        <p><b>Teléfono:</b> ${telefono || ""}</p>
 
         <div style="margin-top: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
           📌 <b>Por favor envía el comprobante de pago al número 985979119</b>
@@ -149,30 +159,39 @@ router.post("/", async (req, res) => {
       <div style="background-color: #1976d2; color: white; text-align: center; padding: 10px;">
         <p style="margin: 0; font-size: 14px;">&copy; ${new Date().getFullYear()} Titilab Store - Todos los derechos reservados.</p>
       </div>
-    </div>
-    `;
+    </div>`;
 
-    await transporter.sendMail({
-      from: `"Titilab Store" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "🛒 Confirmación de tu pedido - Titilab Store",
-      html: htmlContent
-    });
-
-    console.log(`📧 Email enviado a ${email}`);
+    // Enviar correo (no rompemos el flujo si falla)
+    let emailSent = false;
+    let emailError = null;
+    try {
+      await transporter.sendMail({
+        from: `"Titilab Store" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "🛒 Confirmación de tu pedido - Titilab Store",
+        html: htmlContent,
+      });
+      emailSent = true;
+      console.log(`📧 Email enviado a ${email}`);
+    } catch (e) {
+      emailError = e?.message || String(e);
+      console.error("❌ Error enviando correo:", emailError);
+    }
 
     res.status(200).json({
       success: true,
-      message: "Pedido procesado, guardado y correo enviado",
+      message: "Pedido procesado y guardado",
       orderId,
-      tracking: trackingCode
+      tracking: trackingCode,
+      emailSent,
+      ...(emailError ? { emailError } : {}),
     });
   } catch (error) {
     console.error("❌ Error en checkout:", error.message, error.stack);
     res.status(500).json({
       success: false,
       error: "Error procesando el pedido",
-      details: error.message
+      details: error.message,
     });
   }
 });

@@ -1,27 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Container, TextField, Button, Typography, Box } from '@mui/material';
+import React, { useState, useEffect } from "react";
+import { Container, TextField, Button, Typography, Box } from "@mui/material";
+import { apiFetch } from "../utils/api"; // ⬅️ usa el helper central
 
 function AdminLogin() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // ✅ Check token validity before redirect
+  // ✅ Verifica token antes de entrar
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          // token valid → redirect to admin
-          window.location.href = "/admin";
-        } else {
-          // token expired → remove it
-          localStorage.removeItem("token");
-        }
-      } catch {
-        // token malformed → remove it
+    if (!token) return;
+
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.exp * 1000 > Date.now()) {
+        window.location.href = "/admin";
+      } else {
         localStorage.removeItem("token");
       }
+    } catch {
+      localStorage.removeItem("token");
     }
   }, []);
 
@@ -34,21 +32,28 @@ function AdminLogin() {
     }
 
     try {
-      const res = await fetch("http://192.168.18.31:4000/api/admin/login", {
+      const res = await apiFetch("/admin/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
       });
 
-      const data = await res.json();
+      // Intenta parsear JSON; si el backend devolvió HTML/Texto, mostramos algo útil
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        const text = await res.text();
+        throw new Error(`Respuesta no-JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
+      }
 
       if (res.ok && data.token) {
         localStorage.setItem("token", data.token);
         window.location.href = "/admin";
       } else {
-        alert(data.message || "❌ Credenciales incorrectas");
+        alert(data.message || `❌ Error de login (HTTP ${res.status})`);
       }
     } catch (error) {
+      console.error("Login error:", error);
       alert("⚠️ Error de conexión con el servidor");
     }
   };
@@ -67,6 +72,7 @@ function AdminLogin() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            autoComplete="username"
           />
           <TextField
             label="Contraseña"
@@ -76,13 +82,9 @@ function AdminLogin() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
           />
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            sx={{ mt: 2 }}
-          >
+          <Button type="submit" variant="contained" fullWidth sx={{ mt: 2 }}>
             Ingresar
           </Button>
         </form>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { Box, Container, Grid, Typography, Link, Divider, Stack } from "@mui/material";
 import FacebookIcon from "@mui/icons-material/Facebook";
 import InstagramIcon from "@mui/icons-material/Instagram";
@@ -16,7 +17,9 @@ function Footer() {
         { label: "ESP32", path: "/productos/esp32" },
         { label: "Raspberry", path: "/productos/raspberry" },
         { label: "Sensores", path: "/productos/sensores" },
-        { label: "Componentes", path: "/productos/componentes" }
+        { label: "Componentes", path: "/productos/componentes" },
+        { label: "Domótica", path: "/productos/domotica" },
+        { label: "IoT", path: "/productos/iot" }
       ]
     },
     {
@@ -44,10 +47,40 @@ function Footer() {
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Titilab Store
             </Typography>
-            <Typography variant="body2" color="grey.400" sx={{ maxWidth: 280 }}>
+            <Typography variant="body2" color="grey.400" sx={{ maxWidth: 320 }}>
               Componentes electrónicos, soluciones IoT y cursos de tecnología.
               Innovando desde la academia y la industria para el mundo 🌎.
             </Typography>
+
+            {/* Libro de Reclamaciones */}
+            <Box sx={{ mt: 2 }}>
+              <Link
+                component={RouterLink}
+                to="/libro-de-reclamaciones"
+                underline="none"
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 1,
+                  bgcolor: "#fff",
+                  color: "#000",
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: 1,
+                  boxShadow: 2,
+                  "&:hover": { boxShadow: 4 }
+                }}
+              >
+                <img
+                  src="/images/reclamos.jpg" /* si tu archivo es .jpg/.svg, cambia la extensión */
+                  alt="Libro de Reclamaciones"
+                  style={{ height: 34, display: "block" }}
+                />
+                <Typography variant="body2" fontWeight="bold">
+                  Libro de Reclamaciones
+                </Typography>
+              </Link>
+            </Box>
           </Grid>
 
           {/* Navigation Links */}
@@ -61,7 +94,8 @@ function Footer() {
                   {cat.links.map((link, i) => (
                     <Link
                       key={i}
-                      href={link.path}
+                      component={RouterLink}
+                      to={link.path}
                       color="inherit"
                       underline="hover"
                       display="block"
@@ -82,11 +116,15 @@ function Footer() {
             </Typography>
             <Stack direction="row" alignItems="center" spacing={1} mb={1}>
               <EmailIcon fontSize="small" />
-              <Typography variant="body2">contacto@titilab.store</Typography>
+              <Link href="mailto:contacto@titilab.store" color="inherit" underline="hover">
+                <Typography variant="body2">contacto@titilab.store</Typography>
+              </Link>
             </Stack>
             <Stack direction="row" alignItems="center" spacing={1} mb={1}>
               <PhoneIcon fontSize="small" />
-              <Typography variant="body2">+51 985 979 119</Typography>
+              <Link href="tel:+51985979119" color="inherit" underline="hover">
+                <Typography variant="body2">+51 985 979 119</Typography>
+              </Link>
             </Stack>
             <Typography variant="body2" sx={{ mb: 2 }}>
               Puno, Perú
@@ -96,9 +134,15 @@ function Footer() {
               Síguenos
             </Typography>
             <Stack direction="row" spacing={2}>
-              <Link href="#" color="inherit"><FacebookIcon /></Link>
-              <Link href="#" color="inherit"><InstagramIcon /></Link>
-              <Link href="#" color="inherit"><YouTubeIcon /></Link>
+              <Link href="#" color="inherit" target="_blank" rel="noopener noreferrer">
+                <FacebookIcon />
+              </Link>
+              <Link href="#" color="inherit" target="_blank" rel="noopener noreferrer">
+                <InstagramIcon />
+              </Link>
+              <Link href="#" color="inherit" target="_blank" rel="noopener noreferrer">
+                <YouTubeIcon />
+              </Link>
             </Stack>
           </Grid>
         </Grid>

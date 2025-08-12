@@ -7,6 +7,8 @@ import {
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
+import { apiPost } from "../utils/api";
+
 import departamentos from "../data/ubigeo_peru_2016_departamentos.json";
 import provincias from "../data/ubigeo_peru_2016_provincias.json";
 import distritos from "../data/ubigeo_peru_2016_distritos.json";
@@ -15,7 +17,7 @@ const pasos = ["Carrito", "Datos", "Pago", "Confirmación"];
 
 function Checkout() {
   const [cart, setCart] = useState([]);
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(1); // 1: Datos (asumiendo carrito ya existe)
   const [departamento, setDepartamento] = useState("");
   const [provincia, setProvincia] = useState("");
   const [distrito, setDistrito] = useState("");
@@ -29,30 +31,53 @@ function Checkout() {
   const [orderId, setOrderId] = useState("");
   const [trackingCode, setTrackingCode] = useState("");
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem("cart")) || [];
+    const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
     setCart(savedCart);
+    if (savedCart.length === 0) setActiveStep(0); // Carrito
   }, []);
 
-  const getSubtotal = () => cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const getEnvio = () => courier === "Olva" ? 15 : 20;
-  const getTotal = () => (getSubtotal() + getEnvio()).toFixed(2);
+  const getSubtotal = () => cart.reduce((acc, item) => acc + Number(item.price || 0) * Number(item.quantity || 0), 0);
+  const getEnvio = () => (courier === "Olva" ? 15 : 20);
+  const getTotalNumber = () => getSubtotal() + getEnvio();
+  const getTotal = () => getTotalNumber().toFixed(2);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => setFormData((s) => ({ ...s, [e.target.name]: e.target.value }));
 
-  const validarDNI = (dni) => /^\d{8}$/.test(dni);
-  const validarRUC = (ruc) => /^\d{11}$/.test(ruc) && ["10", "15", "17", "20"].includes(ruc.substring(0, 2));
+  const validarDNI = (dni) => /^\d{8}$/.test(String(dni || "").trim());
+  const validarRUC = (ruc) => {
+    const s = String(ruc || "").trim();
+    return /^\d{11}$/.test(s) && ["10", "15", "17", "20"].includes(s.slice(0, 2));
+  };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    setSnackbar({ open: true, message: `Copiado: ${text}` });
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setSnackbar({ open: true, message: `Copiado: ${text}` });
+    } catch {
+      // Fallback
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setSnackbar({ open: true, message: `Copiado: ${text}` });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.nombre || !formData.email || !formData.direccion) {
+    if (submitting) return;
+
+    if (!formData.nombre || !formData.email || !formData.direccion || !formData.telefono) {
       alert("Por favor, completa todos los campos obligatorios.");
+      return;
+    }
+    if (!departamento || !provincia || !distrito) {
+      alert("Selecciona departamento, provincia y distrito.");
       return;
     }
     if (tipoComprobante === "boleta" && !validarDNI(formData.dni)) {
@@ -69,37 +94,37 @@ function Checkout() {
     const provinciaName = provincias.find(prov => prov.id === provincia)?.name || "";
     const distritoName = distritos.find(dist => dist.id === distrito)?.name || "";
 
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          tipoComprobante,
-          departamento: departamentoName,
-          provincia: provinciaName,
-          distrito: distritoName,
-          courier,
-          metodoPago,
-          cart,
-          total: getTotal(),
-          status: "pendiente"
-        })
-      });
+    // Aseguramos que los items tengan _id (compatibilidad backend para stock)
+    const cartToSend = (cart || []).map(it => ({
+      ...it,
+      _id: it._id ?? it.id,
+    }));
 
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setOrderId(data.orderId || "N/A");
-        setTrackingCode(data.tracking || "En preparación");
-        localStorage.removeItem("cart");
-        setCart([]);
-        setActiveStep(3);
-      } else {
-        alert(data.error || "❌ Hubo un problema al procesar tu pedido.");
-      }
+    setSubmitting(true);
+    try {
+      const data = await apiPost("/checkout", {
+        ...formData,
+        tipoComprobante,
+        departamento: departamentoName,
+        provincia: provinciaName,
+        distrito: distritoName,
+        courier,
+        metodoPago,
+        cart: cartToSend,              // enviamos arreglo (backend lo soporta)
+        total: Number(getTotalNumber()),
+        status: "pendiente",
+      }, { withAuth: false });
+
+      setOrderId(data.orderId || "N/A");
+      setTrackingCode(data.tracking || "En preparación");
+      localStorage.removeItem("cart");
+      setCart([]);
+      setActiveStep(3); // Confirmación
     } catch (error) {
       console.error("Error enviando pedido:", error);
-      alert("❌ Error de conexión con el servidor.");
+      alert(error?.message || "❌ Error de conexión con el servidor.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -238,8 +263,8 @@ function Checkout() {
 
               <Typography variant="subtitle1" sx={{ mt: 2 }}>Método de envío</Typography>
               <RadioGroup value={courier} onChange={(e) => setCourier(e.target.value)}>
-                <FormControlLabel value="Olva" control={<Radio />} label="Olva Courier - S/15.00" />
-                <FormControlLabel value="Shalom" control={<Radio />} label="Shalom - S/20.00" />
+                <FormControlLabel value="Shalom" control={<Radio />} label="Shalom - S/15.00" />
+                <FormControlLabel value="Olva" control={<Radio />} label="Olva  - S/20.00" />
               </RadioGroup>
 
               {/* Métodos de pago y datos a la derecha */}
@@ -273,8 +298,15 @@ function Checkout() {
                 </Grid>
               </Grid>
 
-              <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>
-                Realizar Pedido
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{ mt: 2 }}
+                disabled={submitting}
+              >
+                {submitting ? "Enviando pedido..." : "Realizar Pedido"}
               </Button>
             </form>
           </Grid>
@@ -285,10 +317,10 @@ function Checkout() {
             <Card>
               <CardContent>
                 {cart.map(item => (
-                  <div key={item._id} style={{ marginBottom: "10px" }}>
+                  <div key={item._id ?? item.id} style={{ marginBottom: "10px" }}>
                     <Typography variant="body1">{item.name} x {item.quantity}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      S/ {(item.price * item.quantity).toFixed(2)}
+                      S/ {(Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2)}
                     </Typography>
                     <Divider sx={{ my: 1 }} />
                   </div>

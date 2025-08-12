@@ -30,7 +30,7 @@ function Impresion3D() {
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
   const { addToCart } = useContext(CartContext);
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://192.168.18.31:4000/api";
+  const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://192.168.18.30:4000/api";
 
   useEffect(() => {
     setLoading(true);

@@ -19,6 +19,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Impresion3D from "./pages/Impresion3D";
 import Robotica from "./pages/Robotica";
 import Cursos from "./pages/Cursos";
+import LibroReclamaciones from "./pages/LibroReclamaciones";
 
 function App() {
   return (
@@ -45,6 +46,9 @@ function App() {
 
             {/* 📦 Detalle de producto */}
             <Route path="/producto/:id" element={<ProductDetail />} />
+
+            {/* Libro de Reclamaciones */}
+            <Route path="/libro-de-reclamaciones" element={<LibroReclamaciones />} />
 
             {/* 🔐 Admin protegido */}
             <Route

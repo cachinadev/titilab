@@ -1,7 +1,6 @@
 // src/pages/ProductDetail.js
 import React, { useEffect, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
-import axios from "axios";
 import {
   Container,
   Grid,
@@ -20,13 +19,8 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import { CartContext } from "../context/CartContext";
-
-// ✅ Unified image path handling
-const getImageUrl = (imagePath) => {
-  if (!imagePath) return "/placeholder.png";
-  if (imagePath.startsWith("http")) return imagePath;
-  return imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
-};
+import { getImageUrl } from "../utils/imageUtils";
+import { apiGet } from "../utils/api";
 
 function ProductDetail() {
   const { id } = useParams();
@@ -37,50 +31,87 @@ function ProductDetail() {
   const [modalProduct, setModalProduct] = useState(null);
   const { addToCart } = useContext(CartContext);
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://192.168.18.31:4000/api";
+  // Derivados para deps limpias del useEffect
+  const category = product?.category;
+  const productId = product?._id ?? product?.id;
 
-  // Fetch product
+  // === Obtener producto por id ===
   useEffect(() => {
-    setLoading(true);
-    axios
-      .get(`${backendUrl}/products/${id}`)
-      .then((res) => {
-        setProduct({
-          ...res.data,
-          image: getImageUrl(res.data.image)
-        });
-      })
-      .catch((err) => console.error("Error al obtener detalles del producto:", err))
-      .finally(() => setLoading(false));
-  }, [id, backendUrl]); // ✅ Added backendUrl
+    let active = true;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await apiGet(`/products/${id}`, { withAuth: false });
 
-  // Fetch related products
+        // Toma el primer campo de imagen disponible
+        const imgRaw =
+          data.image ??
+          data.imageUrl ??
+          data.image_url ??
+          data.image_path ??
+          data.file ??
+          data.filename ??
+          "";
+
+        const normalized = {
+          ...data,
+          _id: data._id ?? data.id,
+          image: getImageUrl(imgRaw),
+        };
+
+        if (active) setProduct(normalized);
+      } catch (err) {
+        console.error("Error al obtener detalles del producto:", err);
+        if (active) setProduct(null);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [id]);
+
+  // === Obtener relacionados (misma categoría, distinto id) ===
   useEffect(() => {
-    if (product?.category) {
-      axios
-        .get(`${backendUrl}/products`)
-        .then((res) => {
-          const related = res.data
-            .filter(
-              (p) => p.category === product.category && p._id !== product._id
-            )
-            .map((p) => ({
+    if (!category) return;
+
+    let active = true;
+    (async () => {
+      try {
+        const list = await apiGet(`/products`, { withAuth: false });
+
+        const related = (Array.isArray(list) ? list : [])
+          .filter((p) => p?.category === category && (p._id ?? p.id) !== productId)
+          .map((p) => {
+            const imgRaw =
+              p.image ??
+              p.imageUrl ??
+              p.image_url ??
+              p.image_path ??
+              p.file ??
+              p.filename ??
+              "";
+            return {
               ...p,
-              image: getImageUrl(p.image)
-            }));
-          setRelatedProducts(related);
-        })
-        .catch((err) =>
-          console.error("Error al obtener productos relacionados:", err)
-        );
-    }
-  }, [product, backendUrl]); // ✅ Added backendUrl
+              _id: p._id ?? p.id,
+              image: getImageUrl(imgRaw),
+            };
+          });
+
+        if (active) setRelatedProducts(related);
+      } catch (err) {
+        console.error("Error al obtener productos relacionados:", err);
+        if (active) setRelatedProducts([]);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [category, productId]);
 
   const handleAddToCart = (prod) => {
     addToCart(prod);
     setSnackbar({
       open: true,
-      message: `${prod.name} agregado al carrito 🛒`
+      message: `${prod.name} agregado al carrito 🛒`,
     });
   };
 
@@ -112,14 +143,14 @@ function ProductDetail() {
     <Container sx={{ mt: 4, mb: 6 }}>
       <Paper sx={{ p: 3, borderRadius: 3, mb: 4 }}>
         <Grid container spacing={4}>
-          {/* Product Image */}
+          {/* Imagen del producto */}
           <Grid item xs={12} md={6}>
             <Box
               sx={{
                 border: "1px solid #ddd",
                 borderRadius: 2,
                 overflow: "hidden",
-                bgcolor: "#fafafa"
+                bgcolor: "#fafafa",
               }}
             >
               <CardMedia
@@ -131,7 +162,7 @@ function ProductDetail() {
             </Box>
           </Grid>
 
-          {/* Product Info */}
+          {/* Info del producto */}
           <Grid item xs={12} md={6}>
             <Typography variant="h4" fontWeight="bold" gutterBottom>
               {product.name}
@@ -143,7 +174,7 @@ function ProductDetail() {
               {product.description?.trim() || "Sin descripción"}
             </Typography>
             <Typography variant="h5" color="primary" fontWeight="bold" sx={{ mb: 1 }}>
-              S/ {Number(product.price).toFixed(2)}
+              S/ {Number(product.price || 0).toFixed(2)}
             </Typography>
             <Typography
               variant="body2"
@@ -170,7 +201,7 @@ function ProductDetail() {
         </Grid>
       </Paper>
 
-      {/* Related Products */}
+      {/* Relacionados */}
       {relatedProducts.length > 0 && (
         <Box>
           <Typography variant="h5" fontWeight="bold" gutterBottom>
@@ -184,7 +215,7 @@ function ProductDetail() {
                     p: 2,
                     textAlign: "center",
                     transition: "0.3s",
-                    "&:hover": { boxShadow: 6 }
+                    "&:hover": { boxShadow: 6 },
                   }}
                 >
                   <CardMedia
@@ -197,7 +228,7 @@ function ProductDetail() {
                       bgcolor: "#f5f5f5",
                       borderRadius: 1,
                       mb: 1,
-                      cursor: "pointer"
+                      cursor: "pointer",
                     }}
                     onClick={() => setModalProduct(rel)}
                   />
@@ -215,7 +246,7 @@ function ProductDetail() {
                     {rel.description}
                   </Typography>
                   <Typography variant="h6" color="primary">
-                    S/ {Number(rel.price).toFixed(2)}
+                    S/ {Number(rel.price || 0).toFixed(2)}
                   </Typography>
                   <Button
                     variant="contained"
@@ -257,7 +288,7 @@ function ProductDetail() {
                       width: "100%",
                       height: 300,
                       objectFit: "contain",
-                      bgcolor: "#f5f5f5"
+                      bgcolor: "#f5f5f5",
                     }}
                   />
                 </Grid>
@@ -266,7 +297,7 @@ function ProductDetail() {
                     {modalProduct.description}
                   </Typography>
                   <Typography variant="h5" color="primary" fontWeight="bold" sx={{ mb: 1 }}>
-                    S/ {Number(modalProduct.price).toFixed(2)}
+                    S/ {Number(modalProduct.price || 0).toFixed(2)}
                   </Typography>
                   <Typography
                     variant="body2"

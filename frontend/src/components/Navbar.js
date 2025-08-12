@@ -19,6 +19,8 @@ import AgricultureIcon from "@mui/icons-material/Agriculture";
 import SailingIcon from "@mui/icons-material/Sailing";
 import FactoryIcon from "@mui/icons-material/Factory";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
+import HomeIcon from "@mui/icons-material/Home";   // Domótica
+import HubIcon from "@mui/icons-material/Hub";     // IoT
 import { CartContext } from "../context/CartContext";
 
 function Navbar() {
@@ -44,17 +46,21 @@ function Navbar() {
     }
   }, [cartCount]);
 
+  // Mostrar botón Admin si hay token válido (sin depender de payload.role)
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.role === "admin") setIsAdmin(true);
-      } catch {
+    if (!token) return setIsAdmin(false);
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload?.exp && payload.exp * 1000 > Date.now()) {
+        setIsAdmin(true);
+      } else {
         setIsAdmin(false);
       }
+    } catch {
+      setIsAdmin(false);
     }
-  }, []);
+  }, [location.pathname]);
 
   const linkStyle = (path) => ({
     color: "#fff",
@@ -66,7 +72,7 @@ function Navbar() {
     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
     borderRadius: "8px",
     padding: "12px",
-    minWidth: "400px"
+    minWidth: "480px"
   };
 
   const itemStyle = {
@@ -89,7 +95,7 @@ function Navbar() {
   const handleMenuClose = (setter) => {
     closeTimeout.current = setTimeout(() => {
       setter(null);
-    }, 250); // ⏳ delay de cierre
+    }, 250);
   };
 
   return (
@@ -128,6 +134,10 @@ function Navbar() {
           <MenuItem component={Link} to="/productos/raspberry">Raspberry</MenuItem>
           <MenuItem component={Link} to="/productos/sensores">Sensores</MenuItem>
           <MenuItem component={Link} to="/productos/componentes">Componentes</MenuItem>
+          {/* Nuevo: Domótica & IoT */}
+          <MenuItem component={Link} to="/productos/domotica">Domótica</MenuItem>
+          <MenuItem component={Link} to="/productos/iot">IoT</MenuItem>
+
           {/* Industria */}
           <MenuItem component={Link} to="/industria/mineria">Minería</MenuItem>
           <MenuItem component={Link} to="/industria/pesqueria">Pesquería</MenuItem>
@@ -187,6 +197,10 @@ function Navbar() {
                   <MenuItem sx={itemStyle} component={Link} to="/productos/esp32">
                     <RouterIcon sx={{ mr: 1 }} /> ESP32
                   </MenuItem>
+                  {/* Nuevo: Domótica */}
+                  <MenuItem sx={itemStyle} component={Link} to="/productos/domotica">
+                    <HomeIcon sx={{ mr: 1 }} /> Domótica
+                  </MenuItem>
                 </Grid>
                 <Grid item xs={6}>
                   <MenuItem sx={itemStyle} component={Link} to="/productos/raspberry">
@@ -197,6 +211,10 @@ function Navbar() {
                   </MenuItem>
                   <MenuItem sx={itemStyle} component={Link} to="/productos/componentes">
                     <WidgetsIcon sx={{ mr: 1 }} /> Componentes
+                  </MenuItem>
+                  {/* Nuevo: IoT */}
+                  <MenuItem sx={itemStyle} component={Link} to="/productos/iot">
+                    <HubIcon sx={{ mr: 1 }} /> IoT
                   </MenuItem>
                 </Grid>
               </Grid>

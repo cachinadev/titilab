@@ -1,6 +1,5 @@
 // src/pages/Home.js
 import React, { useEffect, useState, useContext } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
 import {
   Container, Typography, Grid, Card, CardMedia, CardContent, CardActions,
@@ -9,6 +8,12 @@ import {
 } from "@mui/material";
 import { CartContext } from "../context/CartContext";
 import { getImageUrl } from "../utils/imageUtils";
+import { apiGet } from "../utils/api";
+
+import { motion } from "framer-motion";
+const MotionBox = motion(Box);
+const MotionTypography = motion(Typography);
+
 
 const CATEGORIES = [
   {
@@ -76,16 +81,18 @@ function Home() {
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const { addToCart } = useContext(CartContext);
 
-  // Fetch products & normalize image URLs
+  // Fetch products & normalize image URLs (via /api proxy)
   useEffect(() => {
-    const fetchProducts = async () => {
+    (async () => {
       try {
-        const res = await axios.get(
-          `${process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:4000/api"}/products`
-        );
-        const normalized = res.data.map((p) => ({
+        const data = await apiGet("/products", { withAuth: false });
+        const normalized = (Array.isArray(data) ? data : []).map((p) => ({
           ...p,
-          image: getImageUrl(p.image)
+          _id: p._id ?? p.id,
+          image: getImageUrl(p.image), // normalizamos 1 sola vez
+          description: p.description || "",
+          category: p.category || "",
+          name: p.name || "",
         }));
         setProducts(normalized);
         setFilteredProducts(normalized);
@@ -94,34 +101,33 @@ function Home() {
       } finally {
         setLoading(false);
       }
-    };
-    fetchProducts();
+    })();
   }, []);
 
   // Filter products
   useEffect(() => {
-    let tempProducts = [...products];
-    if (selectedCategory !== "Todos") {
-      tempProducts = tempProducts.filter(
-        (p) => p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-    if (search.trim() !== "") {
-      tempProducts = tempProducts.filter(
-        (p) =>
-          p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.description.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    setFilteredProducts(tempProducts);
+    const term = search.trim().toLowerCase();
+    const cat = selectedCategory.toLowerCase();
+
+    const next = products.filter((p) => {
+      const matchesCat =
+        selectedCategory === "Todos" ||
+        (p.category && p.category.toLowerCase() === cat);
+      const matchesSearch =
+        term === "" ||
+        p.name.toLowerCase().includes(term) ||
+        (p.description || "").toLowerCase().includes(term);
+      return matchesCat && matchesSearch;
+    });
+
+    setFilteredProducts(next);
   }, [search, selectedCategory, products]);
 
   const getCategoryCount = (category) => {
     if (category === "Todos") return products.length;
-    return products.filter(
-      (p) => p.category && p.category.toLowerCase() === category.toLowerCase()
-    ).length;
-  };
+    const cat = category.toLowerCase();
+    return products.filter((p) => p.category && p.category.toLowerCase() === cat).length;
+    };
 
   const handleAddToCart = (product) => {
     addToCart(product);
@@ -142,35 +148,55 @@ function Home() {
 
   return (
     <>
-      {/* Hero */}
+    {/* Hero */}
+    <MotionBox
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1 }}
+      sx={{
+        width: "100%",
+        height: { xs: 225, md: 250 },
+        backgroundImage: "url('/images/titilab-banner.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fff",
+        textAlign: "center",
+        mb: 4,
+        position: "relative"
+      }}
+    >
+      {/* Overlay */}
       <Box
         sx={{
-          width: "100%",
-          height: { xs: 80, md: 140 },
-          backgroundImage: "url('https://via.placeholder.com/1600x400?text=Titilab+Store')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#fff",
-          textAlign: "center",
-          mb: 4
+          position: "absolute",
+          inset: 0,
+          backgroundColor: "rgba(0,0,0,0.4)",
+          zIndex: 1
+        }}
+      />
+
+      {/* Animated Text */}
+      <MotionTypography
+        variant="h4"
+        fontWeight="bold"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 1 }}
+        sx={{
+          position: "relative",
+          zIndex: 2,
+          bgcolor: "rgba(0,0,0,0.5)",
+          p: 2,
+          borderRadius: 2,
+          maxWidth: "90%"
         }}
       >
-        <Typography
-          variant="h4"
-          fontWeight="bold"
-          sx={{
-            bgcolor: "rgba(0,0,0,0.5)",
-            p: 2,
-            borderRadius: 2,
-            maxWidth: "90%"
-          }}
-        >
-          Bienvenido a Titilab Store – Componentes y Soluciones IoT
-        </Typography>
-      </Box>
+        Bienvenido a Titilab Store – Componentes y Soluciones IoT
+      </MotionTypography>
+    </MotionBox>
 
       <Container maxWidth="xl">
         {/* Search & Categories */}
@@ -257,7 +283,7 @@ function Home() {
                     >
                       <CardMedia
                         component="img"
-                        image={getImageUrl(product.image)}
+                        image={product.image}
                         alt={product.name}
                         sx={CARD_STYLES.media}
                       />
@@ -281,7 +307,7 @@ function Home() {
                         {product.description}
                       </Typography>
                       <Typography variant="h6" color="primary" sx={{ mt: "auto" }}>
-                        S/ {Number(product.price).toFixed(2)}
+                        S/ {Number(product.price || 0).toFixed(2)}
                       </Typography>
                     </CardContent>
                     <CardActions>

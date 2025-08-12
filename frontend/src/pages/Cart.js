@@ -9,7 +9,7 @@ import {
   IconButton,
   Button,
   Box,
-  Divider
+  Divider,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -17,27 +17,32 @@ import RemoveIcon from "@mui/icons-material/Remove";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import { Link } from "react-router-dom";
 import { CartContext } from "../context/CartContext";
+import { getImageUrl } from "../utils/imageUtils"; // ✅ usar util central
 
 function Cart() {
   const { cart, removeFromCart, updateQuantity, clearCart } = useContext(CartContext);
 
-  // ✅ Format currency (PEN)
+  // ✅ Formato moneda (PEN)
   const currencyFormat = (value) =>
     new Intl.NumberFormat("es-PE", {
       style: "currency",
       currency: "PEN",
-      minimumFractionDigits: 2
-    }).format(value);
+      minimumFractionDigits: 2,
+    }).format(Number(value || 0));
 
-  // 📌 Calculate total
+  // 📌 Total
   const total = useMemo(
-    () => cart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    () =>
+      cart.reduce(
+        (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+        0
+      ),
     [cart]
   );
 
-  // 📌 Change quantity
+  // 📌 Cambiar cantidad
   const changeQuantity = (product, delta) => {
-    const newQty = product.quantity + delta;
+    const newQty = Number(product.quantity || 0) + delta;
     if (newQty <= 0) {
       removeFromCart(product.cartId);
     } else {
@@ -45,16 +50,9 @@ function Cart() {
     }
   };
 
-  // ✅ Always return relative path for images
-  const getImageUrl = (imagePath) => {
-    if (!imagePath) return "/placeholder.png";
-    if (imagePath.startsWith("http")) return imagePath;
-    return imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
-  };
-
   return (
     <Container sx={{ mt: 4, mb: 6 }}>
-      {/* Title */}
+      {/* Título */}
       <Typography
         variant="h4"
         gutterBottom
@@ -62,14 +60,14 @@ function Cart() {
           fontWeight: "bold",
           color: "#333",
           display: "flex",
-          alignItems: "center"
+          alignItems: "center",
         }}
       >
         <ShoppingCartIcon sx={{ mr: 1, fontSize: 32, color: "#1976d2" }} />
         Carrito de Compras
       </Typography>
 
-      {/* Empty cart */}
+      {/* Carrito vacío */}
       {cart.length === 0 ? (
         <Typography variant="h6" sx={{ color: "#777", mt: 3 }}>
           🛒 Tu carrito está vacío.{" "}
@@ -82,7 +80,7 @@ function Cart() {
         </Typography>
       ) : (
         <>
-          {/* Product list */}
+          {/* Lista de productos */}
           {cart.map((item) => (
             <Card
               key={item.cartId}
@@ -93,10 +91,10 @@ function Cart() {
                 boxShadow: 3,
                 borderRadius: 2,
                 transition: "0.2s",
-                "&:hover": { boxShadow: 6 }
+                "&:hover": { boxShadow: 6 },
               }}
             >
-              {/* Image */}
+              {/* Imagen */}
               <CardMedia
                 component="img"
                 sx={{
@@ -104,25 +102,22 @@ function Cart() {
                   height: 140,
                   objectFit: "contain",
                   backgroundColor: "#f9f9f9",
-                  borderRight: "1px solid #eee"
+                  borderRight: "1px solid #eee",
                 }}
                 image={getImageUrl(item.image)}
                 alt={item.name}
               />
 
-              {/* Details */}
+              {/* Detalles */}
               <CardContent sx={{ flexGrow: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                   {item.name}
                 </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ color: "#1976d2", fontWeight: "bold", mt: 0.5 }}
-                >
+                <Typography variant="body1" sx={{ color: "#1976d2", fontWeight: "bold", mt: 0.5 }}>
                   {currencyFormat(item.price)}
                 </Typography>
 
-                {/* Quantity controls */}
+                {/* Controles de cantidad */}
                 <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
                   <Typography variant="body2" sx={{ mr: 1, fontWeight: "bold" }}>
                     Cantidad:
@@ -130,39 +125,22 @@ function Cart() {
                   <IconButton
                     onClick={() => changeQuantity(item, -1)}
                     size="small"
-                    sx={{
-                      backgroundColor: "#eee",
-                      "&:hover": { backgroundColor: "#ddd" }
-                    }}
+                    sx={{ backgroundColor: "#eee", "&:hover": { backgroundColor: "#ddd" } }}
                   >
                     <RemoveIcon />
                   </IconButton>
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      mx: 1,
-                      minWidth: "24px",
-                      textAlign: "center"
-                    }}
-                  >
+                  <Typography variant="body1" sx={{ mx: 1, minWidth: "24px", textAlign: "center" }}>
                     {item.quantity}
                   </Typography>
                   <IconButton
                     onClick={() => changeQuantity(item, 1)}
                     size="small"
-                    sx={{
-                      backgroundColor: "#eee",
-                      "&:hover": { backgroundColor: "#ddd" }
-                    }}
+                    sx={{ backgroundColor: "#eee", "&:hover": { backgroundColor: "#ddd" } }}
                   >
                     <AddIcon />
                   </IconButton>
-                  {/* Remove */}
-                  <IconButton
-                    onClick={() => removeFromCart(item.cartId)}
-                    color="error"
-                    sx={{ ml: 2 }}
-                  >
+                  {/* Eliminar */}
+                  <IconButton onClick={() => removeFromCart(item.cartId)} color="error" sx={{ ml: 2 }}>
                     <DeleteIcon />
                   </IconButton>
                 </Box>
@@ -172,7 +150,7 @@ function Cart() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Total & Actions */}
+          {/* Total & Acciones */}
           <Box
             sx={{
               display: "flex",
@@ -183,7 +161,7 @@ function Cart() {
               backgroundColor: "#f5f5f5",
               padding: "16px",
               borderRadius: 2,
-              boxShadow: 2
+              boxShadow: 2,
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: "bold" }}>
@@ -194,12 +172,7 @@ function Cart() {
                 variant="outlined"
                 color="error"
                 onClick={clearCart}
-                sx={{
-                  padding: "10px 20px",
-                  fontSize: "14px",
-                  fontWeight: "bold",
-                  borderRadius: "8px"
-                }}
+                sx={{ padding: "10px 20px", fontSize: "14px", fontWeight: "bold", borderRadius: "8px" }}
               >
                 Vaciar carrito
               </Button>
@@ -209,12 +182,7 @@ function Cart() {
                 size="large"
                 component={Link}
                 to="/checkout"
-                sx={{
-                  padding: "10px 20px",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                  borderRadius: "8px"
-                }}
+                sx={{ padding: "10px 20px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px" }}
               >
                 Proceder al pago
               </Button>
